@@ -8,6 +8,6 @@ services:
     environment:
       # Default timezone if not specified via command-line args
       # You can override this in the command below
-      - TZ=Europe/London
-    command: python app.py --port 5001 --timezone ${TZ:-Europe/London}
+      - TZ=America/New_York
+    command: python app.py --port 5001 --timezone ${TZ:-America/New_York}
     restart: unless-stopped

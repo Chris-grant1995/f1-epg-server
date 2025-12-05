@@ -148,8 +148,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="F1 EPG Server")
     parser.add_argument('--port', type=int, default=5001,
                         help='Port to run the Flask server on (default: 5001)')
-    parser.add_argument('--timezone', type=str, default='UTC',
-                        help='Timezone for EPG output (e.g., Europe/London, America/New_York). Default: UTC')
+    parser.add_argument('--timezone', type=str, default='America/New_York',
+                        help='Timezone for EPG output (e.g., Europe/London, America/New_York). Default: America/New_York')
     args = parser.parse_args()
 
     try:
