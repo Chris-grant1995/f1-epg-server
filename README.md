@@ -53,12 +53,12 @@ Once the server is running, access the EPG XML at: `http://127.0.0.1:5001/epg.xm
 
 ## Docker Usage
 
-### Build the Docker Image
+The Docker image for this application is available on GitHub Container Registry.
 
-Navigate to the project root directory (where `Dockerfile` is located) and run:
+### Pull the Docker Image
 
 ```bash
-docker build -t f1-epg-server .
+docker pull ghcr.io/chris-grant1995/f1-epg-server:latest
 ```
 
 ### Run the Docker Container
@@ -66,7 +66,7 @@ docker build -t f1-epg-server .
 You can run the Docker container, mapping the internal port 5001 to an external port (e.g., 8000) and specifying the timezone:
 
 ```bash
-docker run -p 8000:5001 --name f1-epg-app f1-epg-server python app.py --port 5001 --timezone Europe/London
+docker run -p 8000:5001 --name f1-epg-app ghcr.io/chris-grant1995/f1-epg-server:latest python app.py --port 5001 --timezone Europe/London
 ```
 
 Access the EPG XML at: `http://127.0.0.1:8000/epg.xml`
@@ -93,13 +93,13 @@ Docker Compose allows you to define and run multi-container Docker applications.
 1.  **Build and Run with Docker Compose:**
     Navigate to the project root directory (where `docker-compose.yml` is located) and run:
     ```bash
-    docker compose up --build -d
+    docker compose up -d
     ```
-    This command builds the Docker image (if not already built), starts the container in detached mode (`-d`), and maps port 5001 (as defined in `docker-compose.yml`). The timezone is set to `Europe/London` by default in the `docker-compose.yml`, but you can override it by setting the `TZ` environment variable before running `docker compose up`.
+    This command pulls the Docker image (if not already available locally), starts the container in detached mode (`-d`), and maps port 5001 (as defined in `docker-compose.yml`). The timezone is set to `Europe/London` by default in the `docker-compose.yml`, but you can override it by setting the `TZ` environment variable before running `docker compose up`.
 
     Example to run with a different timezone:
     ```bash
-    TZ=America/New_York docker compose up --build -d
+    TZ=America/New_York docker compose up -d
     ```
 
 2.  **Access the EPG:**
