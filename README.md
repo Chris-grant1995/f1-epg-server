@@ -41,7 +41,7 @@ A Flask-based web server that provides the current Formula 1 schedule in XMLTV f
 
 ## Usage (Local Server)
 
-To run the server, you can specify the port and the desired timezone. If no timezone is provided, it defaults to UTC.
+To run the server, you can specify the port and the desired timezone. If no timezone is provided, it defaults to `America/New_York` (as set in `app.py`).
 
 ```bash
 python3 app.py --port 5001 --timezone Europe/London
@@ -63,10 +63,16 @@ docker pull ghcr.io/chris-grant1995/f1-epg-server:latest
 
 ### Run the Docker Container
 
-You can run the Docker container, mapping the internal port 5001 to an external port (e.g., 8000) and specifying the timezone:
+You can run the Docker container, mapping the internal port 5001 to an external port (e.g., 8000). The default timezone is set in the Dockerfile (`America/New_York`).
 
 ```bash
-docker run -p 8000:5001 --name f1-epg-app ghcr.io/chris-grant1995/f1-epg-server:latest python app.py --port 5001 --timezone Europe/London
+docker run -p 8000:5001 --name f1-epg-app ghcr.io/chris-grant1995/f1-epg-server:latest
+```
+
+To override the default timezone:
+
+```bash
+docker run -p 8000:5001 --name f1-epg-app ghcr.io/chris-grant1995/f1-epg-server:latest --timezone Europe/London
 ```
 
 Access the EPG XML at: `http://127.0.0.1:8000/epg.xml`
@@ -90,16 +96,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Docker Compose allows you to define and run multi-container Docker applications. For this project, it simplifies running the F1 EPG server.
 
-1.  **Build and Run with Docker Compose:**
+1.  **Run with Docker Compose:**
     Navigate to the project root directory (where `docker-compose.yml` is located) and run:
     ```bash
     docker compose up -d
     ```
-    This command pulls the Docker image (if not already available locally), starts the container in detached mode (`-d`), and maps port 5001 (as defined in `docker-compose.yml`). The timezone is set to `Europe/London` by default in the `docker-compose.yml`, but you can override it by setting the `TZ` environment variable before running `docker compose up`.
+    This command pulls the Docker image (if not already available locally) and starts the container in detached mode (`-d`), mapping port 5001 (as defined in `docker-compose.yml`). The default timezone is set in the Dockerfile (`America/New_York`).
 
-    Example to run with a different timezone:
+    To override the default timezone using an environment variable:
     ```bash
-    TZ=America/New_York docker compose up -d
+    TZ=Europe/London docker compose up -d
     ```
 
 2.  **Access the EPG:**
