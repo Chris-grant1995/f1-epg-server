@@ -159,8 +159,9 @@ def generate_xmltv(races, target_timezone):
             icon.set("src", f"https://flagcdn.com/16x12/{p['country_code'].lower()}.png")
 
 
-    # Determine the next event for the channel display name
+    # Determine the next event for the channel display name and icon
     next_event_name = "Formula 1" # Default if no events found
+    next_event_country_code = "gb" # Initialize with a default country code
     current_utc_time = datetime.utcnow().replace(tzinfo=pytz.utc)
 
     if all_programmes:
