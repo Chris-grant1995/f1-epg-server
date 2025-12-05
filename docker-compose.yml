@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   f1-epg-server:
-    build: .
+    image: ghcr.io/chris-grant1995/f1-epg-server:latest
     ports:
       - "5001:5001"
     environment:
