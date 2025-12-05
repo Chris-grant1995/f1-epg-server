@@ -21,4 +21,4 @@ ENV FLASK_ENV=production
 
 # Run the application
 # We use exec form to allow Docker to handle signals gracefully
-CMD ["python", "app.py", "--host", "0.0.0.0", "--port", "5001"]
+CMD ["python", "app.py", "--host", "0.0.0.0", "--port", "5001", "--timezone", "America/New_York"]

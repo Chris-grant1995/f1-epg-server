@@ -9,5 +9,5 @@ services:
       # Default timezone if not specified via command-line args
       # You can override this in the command below
       - TZ=America/New_York
-    command: python app.py --port 5001 --timezone ${TZ:-America/New_York}
+    
     restart: unless-stopped
