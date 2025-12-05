@@ -131,12 +131,21 @@ def generate_xmltv(races, target_timezone):
 
     # Determine the next event for the channel display name
     next_event_name = "Formula 1" # Default if no events found
+    current_utc_time = datetime.utcnow().replace(tzinfo=pytz.utc)
+
     if all_programmes:
-        # Find the first actual session (not a placeholder)
+        # Find the first actual session (not a placeholder) that starts after the current time
         for p in all_programmes:
-            if not p.get("is_placeholder", False):
+            if not p.get("is_placeholder", False) and p["start"] > current_utc_time:
                 next_event_name = p["title"].replace("F1 ", "") # Remove "F1 " prefix
                 break
+        # If no future events are found, use the last event's name or a default
+        if next_event_name == "Formula 1" and all_programmes:
+            # Fallback to the last actual event if all events are in the past
+            for p in reversed(all_programmes):
+                if not p.get("is_placeholder", False):
+                    next_event_name = p["title"].replace("F1 ", "")
+                    break
 
     # Add a channel entry
     channel = ET.SubElement(tv, "channel")
