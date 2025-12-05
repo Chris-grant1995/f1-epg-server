@@ -129,11 +129,20 @@ def generate_xmltv(races, target_timezone):
         desc = ET.SubElement(programme, "desc")
         desc.text = p["desc"]
 
-    # Add a dummy channel entry
+    # Determine the next event for the channel display name
+    next_event_name = "Formula 1" # Default if no events found
+    if all_programmes:
+        # Find the first actual session (not a placeholder)
+        for p in all_programmes:
+            if not p.get("is_placeholder", False):
+                next_event_name = p["title"].replace("F1 ", "") # Remove "F1 " prefix
+                break
+
+    # Add a channel entry
     channel = ET.SubElement(tv, "channel")
     channel.set("id", "f1.channel")
     display_name = ET.SubElement(channel, "display-name")
-    display_name.text = "Formula 1"
+    display_name.text = f"F1 TV - {next_event_name}"
 
     return ET.tostring(tv, encoding='unicode')
 
