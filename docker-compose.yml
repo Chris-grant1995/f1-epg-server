@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  f1-epg-server:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      # Default timezone if not specified via command-line args
+      # You can override this in the command below
+      - TZ=Europe/London
+    command: python app.py --port 5001 --timezone ${TZ:-Europe/London}
+    restart: unless-stopped

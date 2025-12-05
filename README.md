@@ -84,8 +84,29 @@ This project uses the [Jolpica API](https://api.jolpi.ca/ergast/f1/2025.json) fo
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details (Note: A `LICENSE` file is not included in this repository yet, but it's good practice to add one).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contributing
+## Docker Compose Usage
 
-Contributions are welcome! Please feel free to open issues or submit pull requests.
+Docker Compose allows you to define and run multi-container Docker applications. For this project, it simplifies running the F1 EPG server.
+
+1.  **Build and Run with Docker Compose:**
+    Navigate to the project root directory (where `docker-compose.yml` is located) and run:
+    ```bash
+    docker compose up --build -d
+    ```
+    This command builds the Docker image (if not already built), starts the container in detached mode (`-d`), and maps port 5001 (as defined in `docker-compose.yml`). The timezone is set to `Europe/London` by default in the `docker-compose.yml`, but you can override it by setting the `TZ` environment variable before running `docker compose up`.
+
+    Example to run with a different timezone:
+    ```bash
+    TZ=America/New_York docker compose up --build -d
+    ```
+
+2.  **Access the EPG:**
+    The EPG XML will be available at: `http://127.0.0.1:5001/epg.xml`
+
+3.  **Stop and Remove Containers:**
+    To stop and remove the container, network, and volumes defined in `docker-compose.yml`:
+    ```bash
+    docker compose down
+    ```
