@@ -21,7 +21,7 @@ def get_f1_schedule():
 
 def generate_xmltv(races, target_timezone):
     """Generates an XMLTV string from a list of F1 races, including all sessions and placeholders,
-    converted to the specified target_timezone."""
+    converted to the specified target_timezone, with F1 logo and country flags."""
     tv = ET.Element("tv")
     tv.set("generator-info-name", "F1 EPG Server")
 
@@ -39,6 +39,18 @@ def generate_xmltv(races, target_timezone):
         "Race": {"name": "Race", "duration_hours": 2},
     }
 
+    # Mapping from country name (from Ergast API) to ISO 3166-1 alpha-2 code for flagcdn.com
+    country_code_map = {
+        "Bahrain": "bh", "Australia": "au", "Vietnam": "vn", "China": "cn", "Netherlands": "nl",
+        "Spain": "es", "Monaco": "mc", "Azerbaijan": "az", "Canada": "ca", "Austria": "at",
+        "Great Britain": "gb", "Hungary": "hu", "Belgium": "be", "Italy": "it", "Singapore": "sg",
+        "Japan": "jp", "United States": "us", "Mexico": "mx", "Brazil": "br", "Abu Dhabi": "ae",
+        "Saudi Arabia": "sa", "Qatar": "qa", "France": "fr", "Portugal": "pt", "Germany": "de",
+        "Russia": "ru", "Turkey": "tr", "Malaysia": "my", "India": "in", "Korea": "kr",
+        "Europe": "eu", # For generic European events if any
+        # Add more mappings as needed
+    }
+
     all_programmes = []
 
     for race in races:
@@ -46,6 +58,7 @@ def generate_xmltv(races, target_timezone):
         circuit_name = race['Circuit']['circuitName']
         locality = race['Circuit']['Location']['locality']
         country = race['Circuit']['Location']['country']
+        country_code = country_code_map.get(country, "gb") # Default to GB if not found
 
         sessions_for_weekend = []
 
@@ -60,7 +73,8 @@ def generate_xmltv(races, target_timezone):
                 "end": end_time_utc,
                 "title": f"F1 {session_types['Race']['name']} - {race_name}",
                 "desc": f"Live coverage of the Formula 1 {session_types['Race']['name']} for the {race_name} from {circuit_name} in {locality}, {country}.",
-                "is_placeholder": False
+                "is_placeholder": False,
+                "country_code": country_code
             })
         except ValueError as e:
             print(f"Error parsing date/time for main Race of '{race_name}': {e}")
@@ -81,7 +95,8 @@ def generate_xmltv(races, target_timezone):
                         "end": end_time_utc,
                         "title": f"F1 {session_info['name']} - {race_name}",
                         "desc": f"Live coverage of the Formula 1 {session_info['name']} for the {race_name} from {circuit_name} in {locality}, {country}.",
-                        "is_placeholder": False
+                        "is_placeholder": False,
+                        "country_code": country_code
                     })
                 except ValueError as e:
                     print(f"Error parsing date/time for {session_info['name']} of '{race_name}': {e}")
@@ -106,7 +121,8 @@ def generate_xmltv(races, target_timezone):
                         "end": gap_end,
                         "title": f"Next: {next_session['title'].replace('F1 ', '')} at {next_session['start'].astimezone(target_timezone).strftime('%H:%M %Z')}",
                         "desc": f"Waiting for the next Formula 1 session: {next_session['title'].replace('F1 ', '')}.",
-                        "is_placeholder": True
+                        "is_placeholder": True,
+                        "country_code": None # Placeholders don't have a specific country flag
                     })
 
     # Sort all programmes (sessions and placeholders) by start time
@@ -128,6 +144,12 @@ def generate_xmltv(races, target_timezone):
 
         desc = ET.SubElement(programme, "desc")
         desc.text = p["desc"]
+
+        # Add country flag icon for actual sessions
+        if not p.get("is_placeholder", False) and p.get("country_code"):
+            icon = ET.SubElement(programme, "icon")
+            icon.set("src", f"https://flagcdn.com/16x12/{p['country_code'].lower()}.png")
+
 
     # Determine the next event for the channel display name
     next_event_name = "Formula 1" # Default if no events found
@@ -152,6 +174,9 @@ def generate_xmltv(races, target_timezone):
     channel.set("id", "f1.channel")
     display_name = ET.SubElement(channel, "display-name")
     display_name.text = f"F1 TV - {next_event_name}"
+    # Add F1 logo to the channel
+    f1_logo_icon = ET.SubElement(channel, "icon")
+    f1_logo_icon.set("src", "https://www.formula1.com/etc/designs/fom-website/images/f1_logo.png")
 
     return ET.tostring(tv, encoding='unicode')
 
