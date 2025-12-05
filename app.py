@@ -150,6 +150,8 @@ if __name__ == '__main__':
                         help='Port to run the Flask server on (default: 5001)')
     parser.add_argument('--timezone', type=str, default='America/New_York',
                         help='Timezone for EPG output (e.g., Europe/London, America/New_York). Default: America/New_York')
+    parser.add_argument('--host', type=str, default='0.0.0.0',
+                        help='Host to run the Flask server on (default: 0.0.0.0)')
     args = parser.parse_args()
 
     try:
@@ -158,4 +160,4 @@ if __name__ == '__main__':
         print(f"Error: Unknown timezone '{args.timezone}'. Defaulting to UTC.")
         app.config['TARGET_TIMEZONE'] = pytz.utc
 
-    app.run(host='0.0.0.0', port=args.port)
+    app.run(host=args.host, port=args.port)
