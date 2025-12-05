@@ -1,10 +1,18 @@
 import os
 import requests
 import xml.etree.ElementTree as ET
-from flask import Flask, Response
+from flask import Flask, Response, send_file, request
 from datetime import datetime, timedelta
 import argparse
 import pytz
+from PIL import Image, ImageDraw, ImageFont
+import io
+import base64
+
+app = Flask(__name__)
+
+# Cache for downloaded images to avoid repeated downloads
+image_cache = {}
 
 app = Flask(__name__)
 
@@ -176,7 +184,7 @@ def generate_xmltv(races, target_timezone):
     display_name.text = f"F1 TV - {next_event_name}"
     # Add F1 logo to the channel
     f1_logo_icon = ET.SubElement(channel, "icon")
-    f1_logo_icon.set("src", "https://www.formula1.com/etc/designs/fom-website/images/f1_logo.png")
+    f1_logo_icon.set("src", f"/channel_icon.png?country_code={next_event_country_code.lower()}")
 
     return ET.tostring(tv, encoding='unicode')
 
@@ -186,6 +194,66 @@ def epg():
     races = get_f1_schedule()
     xml_data = generate_xmltv(races, app.config['TARGET_TIMEZONE'])
     return Response(xml_data, mimetype='application/xml')
+
+F1_LOGO_URL = "https://www.formula1.com/etc/designs/fom-website/images/f1_logo.png"
+FLAG_BASE_URL = "https://flagcdn.com/16x12/" # Small flag for overlay
+
+@app.route('/channel_icon.png')
+def channel_icon():
+    country_code = request.args.get('country_code', 'gb').lower()
+    
+    # Check cache first
+    cache_key = f"channel_icon_{country_code}"
+    if cache_key in image_cache:
+        return send_file(io.BytesIO(image_cache[cache_key]), mimetype='image/png')
+
+    try:
+        # Download F1 logo
+        f1_logo_response = requests.get(F1_LOGO_URL)
+        f1_logo_response.raise_for_status()
+        f1_logo_img = Image.open(io.BytesIO(f1_logo_response.content)).convert("RGBA")
+
+        # Download country flag
+        flag_url = f"{FLAG_BASE_URL}{country_code}.png"
+        flag_response = requests.get(flag_url)
+        flag_response.raise_for_status()
+        flag_img = Image.open(io.BytesIO(flag_response.content)).convert("RGBA")
+
+        # Resize flag to fit on F1 logo (example: 30x20 pixels)
+        flag_size = (30, 20)
+        flag_img = flag_img.resize(flag_size, Image.LANCZOS)
+
+        # Create a new image (e.g., 100x50)
+        # This size might need adjustment based on desired output
+        output_size = (100, 50)
+        combined_img = Image.new("RGBA", output_size, (0, 0, 0, 0)) # Transparent background
+
+        # Paste F1 logo (centered or positioned as desired)
+        f1_logo_img = f1_logo_img.resize((output_size[0] - flag_size[0] - 5, output_size[1]), Image.LANCZOS) # Adjust F1 logo size
+        combined_img.paste(f1_logo_img, (0, 0), f1_logo_img)
+
+        # Paste flag (e.g., bottom right corner)
+        flag_position = (output_size[0] - flag_size[0] - 5, output_size[1] - flag_size[1] - 5)
+        combined_img.paste(flag_img, flag_position, flag_img)
+
+        # Save to BytesIO object
+        img_byte_arr = io.BytesIO()
+        combined_img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # Cache the image
+        image_cache[cache_key] = img_byte_arr
+
+        return send_file(io.BytesIO(img_byte_arr), mimetype='image/png')
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading image: {e}")
+        # Fallback to a default image or error image
+        return Response("Error generating icon", status=500)
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return Response("Error generating icon", status=500)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="F1 EPG Server")
