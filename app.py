@@ -207,17 +207,60 @@ def epg():
     return Response(xml_data, mimetype='application/xml')
 
 F1_LOGO_URL = "https://www.formula1.com/etc/designs/fom-website/images/f1_logo.png"
-FLAG_BASE_URL = "https://flagcdn.com/16x12/" # Small flag for overlay
+FLAG_BASE_URL = "https://flagcdn.com/w160/" # Higher resolution flags
+
+# A simple mapping of country codes to representative background colors (hex codes)
+# These are just examples and can be customized
+COUNTRY_COLORS = {
+    "bh": "#DC0000", # Bahrain Red
+    "au": "#00008B", # Australia Dark Blue
+    "cn": "#EE1C25", # China Red
+    "jp": "#BC002D", # Japan Red
+    "sa": "#006C35", # Saudi Arabia Green
+    "us": "#B22234", # United States Red
+    "mx": "#006847", # Mexico Green
+    "br": "#009739", # Brazil Green
+    "ca": "#D82B1F", # Canada Red
+    "at": "#ED2939", # Austria Red
+    "gb": "#00247D", # Great Britain Blue
+    "hu": "#436F4D", # Hungary Green
+    "be": "#FDDA24", # Belgium Yellow
+    "nl": "#AE1C28", # Netherlands Red
+    "it": "#008C45", # Italy Green
+    "sg": "#EE2436", # Singapore Red
+    "az": "#0098C1", # Azerbaijan Blue
+    "qa": "#8A0046", # Qatar Maroon
+    "ae": "#00732F", # UAE Green
+    "es": "#AA151B", # Spain Red
+    "mc": "#CE1126", # Monaco Red
+    "fr": "#002395", # France Blue
+    "pt": "#006600", # Portugal Green
+    "de": "#000000", # Germany Black
+    "ru": "#D52B1E", # Russia Red
+    "tr": "#E30A17", # Turkey Red
+    "my": "#00008B", # Malaysia Dark Blue
+    "in": "#FF9933", # India Saffron
+    "kr": "#00007D", # Korea Dark Blue
+    "vn": "#DA251D", # Vietnam Red
+    "eu": "#003399", # Europe Blue
+    # Add more as needed
+}
 
 @app.route('/channel_icon.png')
 def channel_icon():
     country_code = request.args.get('country_code', 'gb').lower()
+    
     # Check cache first
     cache_key = f"channel_icon_{country_code}"
     if cache_key in image_cache:
         return send_file(io.BytesIO(image_cache[cache_key]), mimetype='image/png')
 
     try:
+        # Determine background color
+        bg_color_hex = COUNTRY_COLORS.get(country_code, "#000000") # Default to black
+        # Convert hex to RGB
+        bg_color_rgb = tuple(int(bg_color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+
         # Download F1 logo
         f1_logo_response = requests.get(F1_LOGO_URL)
         f1_logo_response.raise_for_status()
@@ -229,22 +272,31 @@ def channel_icon():
         flag_response.raise_for_status()
         flag_img = Image.open(io.BytesIO(flag_response.content)).convert("RGBA")
 
-        # Resize flag to fit on F1 logo (example: 30x20 pixels)
-        flag_size = (30, 20)
-        flag_img = flag_img.resize(flag_size, Image.LANCZOS)
+        # Define output image size
+        output_width = 200
+        output_height = 100
+        combined_img = Image.new("RGBA", (output_width, output_height), bg_color_rgb + (255,)) # Opaque background
 
-        # Create a new image (e.g., 100x50)
-        # This size might need adjustment based on desired output
-        output_size = (100, 50)
-        combined_img = Image.new("RGBA", output_size, (0, 0, 0, 0)) # Transparent background
+        # Resize F1 logo (e.g., 80% of output height, maintain aspect ratio)
+        f1_logo_height = int(output_height * 0.8)
+        f1_logo_width = int(f1_logo_img.width * (f1_logo_height / f1_logo_img.height))
+        f1_logo_img = f1_logo_img.resize((f1_logo_width, f1_logo_height), Image.LANCZOS)
 
-        # Paste F1 logo (centered or positioned as desired)
-        f1_logo_img = f1_logo_img.resize((output_size[0] - flag_size[0] - 5, output_size[1]), Image.LANCZOS) # Adjust F1 logo size
-        combined_img.paste(f1_logo_img, (0, 0), f1_logo_img)
+        # Resize flag (e.g., 50% of output height, maintain aspect ratio)
+        flag_height = int(output_height * 0.5)
+        flag_width = int(flag_img.width * (flag_height / flag_img.height))
+        flag_img = flag_img.resize((flag_width, flag_height), Image.LANCZOS)
 
-        # Paste flag (e.g., bottom right corner)
-        flag_position = (output_size[0] - flag_size[0] - 5, output_size[1] - flag_size[1] - 5)
-        combined_img.paste(flag_img, flag_position, flag_img)
+        # Calculate positions
+        # F1 logo on the left, centered vertically
+        f1_logo_x = 10
+        f1_logo_y = (output_height - f1_logo_height) // 2
+        combined_img.paste(f1_logo_img, (f1_logo_x, f1_logo_y), f1_logo_img)
+
+        # Flag on the right, centered vertically
+        flag_x = output_width - flag_width - 10
+        flag_y = (output_height - flag_height) // 2
+        combined_img.paste(flag_img, (flag_x, flag_y), flag_img)
 
         # Save to BytesIO object
         img_byte_arr = io.BytesIO()
