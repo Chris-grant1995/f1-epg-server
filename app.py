@@ -27,7 +27,7 @@ def get_f1_schedule():
         print(f"Error fetching F1 schedule: {e}")
         return None
 
-def generate_xmltv(races, target_timezone):
+def generate_xmltv(races, target_timezone, base_url):
     """Generates an XMLTV string from a list of F1 races, including all sessions and placeholders,
     converted to the specified target_timezone, with F1 logo and country flags."""
     tv = ET.Element("tv")
@@ -49,14 +49,14 @@ def generate_xmltv(races, target_timezone):
 
     # Mapping from country name (from Ergast API) to ISO 3166-1 alpha-2 code for flagcdn.com
     country_code_map = {
-        "Bahrain": "bh", "Australia": "au", "Vietnam": "vn", "China": "cn", "Netherlands": "nl",
-        "Spain": "es", "Monaco": "mc", "Azerbaijan": "az", "Canada": "ca", "Austria": "at",
-        "Great Britain": "gb", "Hungary": "hu", "Belgium": "be", "Italy": "it", "Singapore": "sg",
-        "Japan": "jp", "United States": "us", "Mexico": "mx", "Brazil": "br", "Abu Dhabi": "ae",
-        "Saudi Arabia": "sa", "Qatar": "qa", "France": "fr", "Portugal": "pt", "Germany": "de",
-        "Russia": "ru", "Turkey": "tr", "Malaysia": "my", "India": "in", "Korea": "kr",
+        "Bahrain": "bh", "Australia": "au", "China": "cn", "Japan": "jp", "Saudi Arabia": "sa",
+        "United States": "us", "Mexico": "mx", "Brazil": "br", "Canada": "ca", "Austria": "at",
+        "Great Britain": "gb", "Hungary": "hu", "Belgium": "be", "Netherlands": "nl", "Italy": "it",
+        "Singapore": "sg", "Azerbaijan": "az", "Qatar": "qa", "Abu Dhabi": "ae", "Spain": "es",
+        "Monaco": "mc", "France": "fr", "Portugal": "pt", "Germany": "de", "Russia": "ru",
+        "Turkey": "tr", "Malaysia": "my", "India": "in", "Korea": "kr", "Vietnam": "vn",
         "Europe": "eu", # For generic European events if any
-        # Add more mappings as needed
+        # Added more common F1 countries and reordered for clarity
     }
 
     all_programmes = []
@@ -169,6 +169,8 @@ def generate_xmltv(races, target_timezone):
         for p in all_programmes:
             if not p.get("is_placeholder", False) and p["start"] > current_utc_time:
                 next_event_name = p["title"].replace("F1 ", "") # Remove "F1 " prefix
+                next_event_country_code = p.get("country_code", "gb")
+                print(f"DEBUG: Next event country from API: {p.get('country')}, mapped code: {next_event_country_code}") # Debug print
                 break
         # If no future events are found, use the last event's name or a default
         if next_event_name == "Formula 1" and all_programmes:
@@ -185,7 +187,7 @@ def generate_xmltv(races, target_timezone):
     display_name.text = f"F1 TV - {next_event_name}"
     # Add F1 logo to the channel
     f1_logo_icon = ET.SubElement(channel, "icon")
-    f1_logo_icon.set("src", f"/channel_icon.png?country_code={next_event_country_code.lower()}")
+    f1_logo_icon.set("src", f"{base_url}/channel_icon.png?country_code={next_event_country_code.lower()}")
 
     return ET.tostring(tv, encoding='unicode')
 
@@ -193,7 +195,9 @@ def generate_xmltv(races, target_timezone):
 def epg():
     """The main EPG endpoint."""
     races = get_f1_schedule()
-    xml_data = generate_xmltv(races, app.config['TARGET_TIMEZONE'])
+    # Get the base URL for generating absolute icon URLs
+    base_url = request.url_root.rstrip('/') # e.g., http://localhost:5001
+    xml_data = generate_xmltv(races, app.config['TARGET_TIMEZONE'], base_url)
     return Response(xml_data, mimetype='application/xml')
 
 F1_LOGO_URL = "https://www.formula1.com/etc/designs/fom-website/images/f1_logo.png"
