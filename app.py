@@ -170,7 +170,7 @@ def generate_xmltv(races, target_timezone, base_url):
             if not p.get("is_placeholder", False) and p["start"] > current_utc_time:
                 next_event_name = p["title"].replace("F1 ", "") # Remove "F1 " prefix
                 next_event_country_code = p.get("country_code", "gb")
-                print(f"DEBUG: Next event country from API: {p.get('country')}, mapped code: {next_event_country_code}") # Debug print
+                print(f"DEBUG: Next event country code from programme: {p.get('country_code')}, mapped code: {next_event_country_code}") # Debug print
                 break
         # If no future events are found, use the last event's name or a default
         if next_event_name == "Formula 1" and all_programmes:
