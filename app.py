@@ -166,18 +166,22 @@ def generate_xmltv(races, target_timezone, base_url):
 
     if all_programmes:
         # Find the first actual session (not a placeholder) that starts after the current time
+        found_next_event = False
         for p in all_programmes:
             if not p.get("is_placeholder", False) and p["start"] > current_utc_time:
                 next_event_name = p["title"].replace("F1 ", "") # Remove "F1 " prefix
-                next_event_country_code = p.get("country_code", "gb")
+                next_event_country_code = p.get("country_code", "gb") # Get country code from the actual session
                 print(f"DEBUG: Next event country code from programme: {p.get('country_code')}, mapped code: {next_event_country_code}") # Debug print
+                found_next_event = True
                 break
-        # If no future events are found, use the last event's name or a default
-        if next_event_name == "Formula 1" and all_programmes:
-            # Fallback to the last actual event if all events are in the past
+        
+        # If no future events are found, use the last actual event's name and country code
+        if not found_next_event and all_programmes:
             for p in reversed(all_programmes):
                 if not p.get("is_placeholder", False):
                     next_event_name = p["title"].replace("F1 ", "")
+                    next_event_country_code = p.get("country_code", "gb") # Get country code from the actual session
+                    print(f"DEBUG: Fallback to last event country code: {p.get('country_code')}, mapped code: {next_event_country_code}") # Debug print
                     break
 
     # Add a channel entry
@@ -206,7 +210,6 @@ FLAG_BASE_URL = "https://flagcdn.com/16x12/" # Small flag for overlay
 @app.route('/channel_icon.png')
 def channel_icon():
     country_code = request.args.get('country_code', 'gb').lower()
-    
     # Check cache first
     cache_key = f"channel_icon_{country_code}"
     if cache_key in image_cache:
