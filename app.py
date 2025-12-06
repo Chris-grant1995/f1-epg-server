@@ -55,6 +55,7 @@ def generate_xmltv(races, target_timezone, base_url):
         "Singapore": "sg", "Azerbaijan": "az", "Qatar": "qa", "Abu Dhabi": "ae", "Spain": "es",
         "Monaco": "mc", "France": "fr", "Portugal": "pt", "Germany": "de", "Russia": "ru",
         "Turkey": "tr", "Malaysia": "my", "India": "in", "Korea": "kr", "Vietnam": "vn",
+        "UAE": "ae", # Added United Arab Emirates
         "Europe": "eu", # For generic European events if any
         # Added more common F1 countries and reordered for clarity
     }
@@ -66,6 +67,7 @@ def generate_xmltv(races, target_timezone, base_url):
         circuit_name = race['Circuit']['circuitName']
         locality = race['Circuit']['Location']['locality']
         country = race['Circuit']['Location']['country']
+        print(race)
         country_code = country_code_map.get(country, "gb") # Default to GB if not found
 
         sessions_for_weekend = []
