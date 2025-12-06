@@ -277,25 +277,31 @@ def channel_icon():
         output_height = 100
         combined_img = Image.new("RGBA", (output_width, output_height), bg_color_rgb + (255,)) # Opaque background
 
-        # Resize F1 logo (e.g., 80% of output height, maintain aspect ratio)
-        f1_logo_height = int(output_height * 0.8)
+        # Define padding
+        padding = 5
+
+        # Resize F1 logo (e.g., 40% of output height, maintain aspect ratio)
+        f1_logo_height = int(output_height * 0.4)
         f1_logo_width = int(f1_logo_img.width * (f1_logo_height / f1_logo_img.height))
         f1_logo_img = f1_logo_img.resize((f1_logo_width, f1_logo_height), Image.LANCZOS)
 
-        # Resize flag (e.g., 50% of output height, maintain aspect ratio)
-        flag_height = int(output_height * 0.5)
+        # Resize flag (e.g., 30% of output height, maintain aspect ratio)
+        flag_height = int(output_height * 0.3)
         flag_width = int(flag_img.width * (flag_height / flag_img.height))
         flag_img = flag_img.resize((flag_width, flag_height), Image.LANCZOS)
 
-        # Calculate positions
-        # F1 logo on the left, centered vertically
-        f1_logo_x = 10
-        f1_logo_y = (output_height - f1_logo_height) // 2
+        # Calculate total height and starting y position for vertical centering
+        total_content_height = f1_logo_height + flag_height + padding
+        y_start = (output_height - total_content_height) // 2
+
+        # Calculate positions for horizontal centering
+        f1_logo_x = (output_width - f1_logo_width) // 2
+        f1_logo_y = y_start
         combined_img.paste(f1_logo_img, (f1_logo_x, f1_logo_y), f1_logo_img)
 
-        # Flag on the right, centered vertically
-        flag_x = output_width - flag_width - 10
-        flag_y = (output_height - flag_height) // 2
+        # Position flag below the F1 logo
+        flag_x = (output_width - flag_width) // 2
+        flag_y = f1_logo_y + f1_logo_height + padding
         combined_img.paste(flag_img, (flag_x, flag_y), flag_img)
 
         # Save to BytesIO object
