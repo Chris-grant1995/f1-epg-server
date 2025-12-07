@@ -17,15 +17,31 @@ image_cache = {}
 app = Flask(__name__)
 
 def get_f1_schedule():
-    """Fetches the current F1 season schedule from the Jolpica API."""
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get("https://api.jolpi.ca/ergast/f1/2025.json", headers=headers)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        return response.json()['MRData']['RaceTable']['Races']
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching F1 schedule: {e}")
-        return None
+    """Fetches the current F1 season schedule from the Jolpica API, with a fallback to next year."""
+    current_year = datetime.now().year
+    
+    def fetch_schedule(year):
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+            response = requests.get(f"https://api.jolpi.ca/ergast/f1/{year}.json", headers=headers)
+            response.raise_for_status()  # Raise an exception for bad status codes
+            data = response.json()
+            if data['MRData']['RaceTable']['Races']:
+                return data['MRData']['RaceTable']['Races']
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching F1 schedule for {year}: {e}")
+            return None
+
+    # Try fetching the current year's schedule first
+    races = fetch_schedule(current_year)
+    
+    # If the current year's schedule is empty, try the next year
+    if not races:
+        print(f"No races found for {current_year}, trying {current_year + 1}...")
+        races = fetch_schedule(current_year + 1)
+        
+    return races
 
 def generate_xmltv(races, target_timezone, base_url):
     """Generates an XMLTV string from a list of F1 races, including all sessions and placeholders,
@@ -177,23 +193,22 @@ def generate_xmltv(races, target_timezone, base_url):
                 found_next_event = True
                 break
         
-        # If no future events are found, use the last actual event's name and country code
-        if not found_next_event and all_programmes:
-            for p in reversed(all_programmes):
-                if not p.get("is_placeholder", False):
-                    next_event_name = p["title"].replace("F1 ", "")
-                    next_event_country_code = p.get("country_code", "gb") # Get country code from the actual session
-                    print(f"DEBUG: Fallback to last event country code: {p.get('country_code')}, mapped code: {next_event_country_code}") # Debug print
-                    break
+        # If no future events are found, set a "No upcoming races" message
+        if not found_next_event:
+            next_event_name = "No upcoming races"
+            next_event_country_code = "gb" # Default to a generic country code
 
     # Add a channel entry
     channel = ET.SubElement(tv, "channel")
     channel.set("id", "f1.channel")
     display_name = ET.SubElement(channel, "display-name")
     display_name.text = f"F1 TV - {next_event_name}"
-    # Add F1 logo to the channel
+    # Always add F1 logo to the channel
     f1_logo_icon = ET.SubElement(channel, "icon")
-    f1_logo_icon.set("src", f"{base_url}/channel_icon.png?country_code={next_event_country_code.lower()}")
+    icon_url = f"{base_url}/channel_icon.png"
+    if next_event_name != "No upcoming races":
+        icon_url += f"?country_code={next_event_country_code.lower()}"
+    f1_logo_icon.set("src", icon_url)
 
     return ET.tostring(tv, encoding='unicode')
 
@@ -248,16 +263,16 @@ COUNTRY_COLORS = {
 
 @app.route('/channel_icon.png')
 def channel_icon():
-    country_code = request.args.get('country_code', 'gb').lower()
+    country_code = request.args.get('country_code')
     
     # Check cache first
-    cache_key = f"channel_icon_{country_code}"
+    cache_key = f"channel_icon_{country_code or 'no_country'}"
     if cache_key in image_cache:
         return send_file(io.BytesIO(image_cache[cache_key]), mimetype='image/png')
 
     try:
         # Determine background color
-        bg_color_hex = COUNTRY_COLORS.get(country_code, "#000000") # Default to black
+        bg_color_hex = COUNTRY_COLORS.get(country_code, "#000000") if country_code else "#000000" # Default to black
         # Convert hex to RGB
         bg_color_rgb = tuple(int(bg_color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
 
@@ -266,11 +281,16 @@ def channel_icon():
         f1_logo_response.raise_for_status()
         f1_logo_img = Image.open(io.BytesIO(f1_logo_response.content)).convert("RGBA")
 
-        # Download country flag
-        flag_url = f"{FLAG_BASE_URL}{country_code}.png"
-        flag_response = requests.get(flag_url)
-        flag_response.raise_for_status()
-        flag_img = Image.open(io.BytesIO(flag_response.content)).convert("RGBA")
+        # Download country flag only if a country_code is provided
+        flag_img = None
+        if country_code:
+            try:
+                flag_url = f"{FLAG_BASE_URL}{country_code}.png"
+                flag_response = requests.get(flag_url)
+                flag_response.raise_for_status()
+                flag_img = Image.open(io.BytesIO(flag_response.content)).convert("RGBA")
+            except requests.exceptions.RequestException as e:
+                print(f"Could not download flag for {country_code}: {e}")
 
         # Define output image size
         output_width = 200
@@ -284,25 +304,30 @@ def channel_icon():
         f1_logo_height = int(output_height * 0.4)
         f1_logo_width = int(f1_logo_img.width * (f1_logo_height / f1_logo_img.height))
         f1_logo_img = f1_logo_img.resize((f1_logo_width, f1_logo_height), Image.LANCZOS)
+        
+        # Create a new transparent image for the content
+        content_height = f1_logo_height + (int(output_height * 0.3) + padding if flag_img else 0)
+        content_img = Image.new("RGBA", (output_width, content_height), (0,0,0,0))
 
-        # Resize flag (e.g., 30% of output height, maintain aspect ratio)
-        flag_height = int(output_height * 0.3)
-        flag_width = int(flag_img.width * (flag_height / flag_img.height))
-        flag_img = flag_img.resize((flag_width, flag_height), Image.LANCZOS)
-
-        # Calculate total height and starting y position for vertical centering
-        total_content_height = f1_logo_height + flag_height + padding
-        y_start = (output_height - total_content_height) // 2
-
-        # Calculate positions for horizontal centering
+        # Paste F1 logo onto the content image
         f1_logo_x = (output_width - f1_logo_width) // 2
-        f1_logo_y = y_start
-        combined_img.paste(f1_logo_img, (f1_logo_x, f1_logo_y), f1_logo_img)
+        f1_logo_y_in_content = 0 if flag_img else (content_height - f1_logo_height) // 2
+        content_img.paste(f1_logo_img, (f1_logo_x, f1_logo_y_in_content), f1_logo_img)
 
-        # Position flag below the F1 logo
-        flag_x = (output_width - flag_width) // 2
-        flag_y = f1_logo_y + f1_logo_height + padding
-        combined_img.paste(flag_img, (flag_x, flag_y), flag_img)
+        # Paste flag below the F1 logo if it exists
+        if flag_img:
+            flag_height = int(output_height * 0.3)
+            flag_width = int(flag_img.width * (flag_height / flag_img.height))
+            flag_img = flag_img.resize((flag_width, flag_height), Image.LANCZOS)
+            flag_x = (output_width - flag_width) // 2
+            flag_y = f1_logo_height + padding
+            content_img.paste(flag_img, (flag_x, flag_y), flag_img)
+
+        # Calculate position to paste the content image onto the background for vertical centering
+        paste_y = (output_height - content_height) // 2
+        
+        # Paste the content image onto the background
+        combined_img.paste(content_img, (0, paste_y), content_img)
 
         # Save to BytesIO object
         img_byte_arr = io.BytesIO()
